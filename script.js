@@ -1,25 +1,70 @@
-  const canvas = document.getElementById('tetris');
+ const canvas = document.getElementById('tetris');
         const context = canvas.getContext('2d');
-        context.scale(20, 20); // Cada bloco será 20x20px
+        context.scale(20, 20);
 
-        const matrix = [
-            [0, 0, 0],
-            [1, 1, 1],
-            [0, 1, 0],
+        // Todas as peças do Tetris (todas com valor 1 para manter a cor ciano)
+        const pecas = [
+            // I
+            [
+                [0, 0, 0, 0],
+                [1, 1, 1, 1],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0]
+            ],
+            // J
+            [
+                [0, 0, 0],
+                [1, 1, 1],
+                [0, 0, 1]
+            ],
+            // L
+            [
+                [0, 0, 0],
+                [1, 1, 1],
+                [1, 0, 0]
+            ],
+            // O
+            [
+                [1, 1],
+                [1, 1]
+            ],
+            // S
+            [
+                [0, 0, 0],
+                [0, 1, 1],
+                [1, 1, 0]
+            ],
+            // T
+            [
+                [0, 0, 0],
+                [1, 1, 1],
+                [0, 1, 0]
+            ],
+            // Z
+            [
+                [0, 0, 0],
+                [1, 1, 0],
+                [0, 1, 1]
+            ]
         ];
 
-        function createMatrix(w, h) {
-            const matrix = [];
-            while (h--) {
-                matrix.push(new Array(w).fill(0));
+        function criarMatriz(largura, altura) {
+            const matriz = [];
+            while (altura--) {
+                matriz.push(new Array(largura).fill(0));
             }
-            return matrix;
+            return matriz;
         }
 
-        function drawMatrix(matrix, offset) {
-            matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
+        function pecaAleatoria() {
+            const randomIndex = Math.floor(Math.random() * pecas.length);
+            return pecas[randomIndex];
+        }
+
+        function desenharMatriz(matriz, offset) {
+            matriz.forEach((linha, y) => {
+                linha.forEach((valor, x) => {
+                    if (valor !== 0) {
                         context.fillStyle = 'cyan';
                         context.fillRect(x + offset.x, y + offset.y, 1, 1);
                     }
@@ -27,19 +72,9 @@
             });
         }
 
-        function merge(arena, player) {
-            player.matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
-                        arena[y + player.pos.y][x + player.pos.x] = value;
-                    }
-                });
-            });
-        }
-
-        function collide(arena, player) {
-            const m = player.matrix;
-            const o = player.pos;
+        function colisao(arena, jogador) {
+            const m = jogador.matrix;
+            const o = jogador.pos;
             for (let y = 0; y < m.length; ++y) {
                 for (let x = 0; x < m[y].length; ++x) {
                     if (m[y][x] !== 0 &&
@@ -52,56 +87,20 @@
             return false;
         }
 
-        function playerDrop() {
-            player.pos.y++;
-            if (collide(arena, player)) {
-                player.pos.y--;
-                merge(arena, player);
-                arenaSweep(); // Remover linhas completas
-                playerReset();
-            }
-            dropCounter = 0;
-        }
-
-        function playerMove(dir) {
-            player.pos.x += dir;
-            if (collide(arena, player)) {
-                player.pos.x -= dir;
-            }
-        }
-
-        function playerReset() {
-            player.matrix = matrix;
-            player.pos.y = 0;
-            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
-            if (collide(arena, player)) {
-                arena.forEach(row => row.fill(0));
-                alert("Game Over!");
-            }
-        }
-
-        function playerRotate() {
-            const m = player.matrix;
-            for (let y = 0; y < m.length; ++y) {
-                for (let x = 0; x < y; ++x) {
-                    [m[x][y], m[y][x]] = [m[y][x], m[x][y]];
-                }
-            }
-            m.forEach(row => row.reverse());
-            if (collide(arena, player)) {
-                m.forEach(row => row.reverse());
-                for (let y = 0; y < m.length; ++y) {
-                    for (let x = 0; x < y; ++x) {
-                        [m[x][y], m[y][x]] = [m[y][x], m[x][y]];
+        function mesclar(arena, jogador) {
+            jogador.matrix.forEach((linha, y) => {
+                linha.forEach((valor, x) => {
+                    if (valor !== 0) {
+                        arena[y + jogador.pos.y][x + jogador.pos.x] = valor;
                     }
-                }
-            }
+                });
+            });
         }
 
-        // Função para remover linhas completas
-        let score = 0;
-        function arenaSweep() {
-            let rowCount = 1;
+        let pontuacao = 0;
+
+        function limparLinhas() {
+            let linhasRemovidas = 0;
             outer: for (let y = arena.length - 1; y >= 0; --y) {
                 for (let x = 0; x < arena[y].length; ++x) {
                     if (arena[y][x] === 0) {
@@ -109,58 +108,121 @@
                     }
                 }
 
-                const row = arena.splice(y, 1)[0].fill(0);
-                arena.unshift(row);
+                const linha = arena.splice(y, 1)[0].fill(0);
+                arena.unshift(linha);
                 ++y;
 
-                score += rowCount * 10;
-                rowCount *= 2;
+                linhasRemovidas++;
+            }
+
+            if (linhasRemovidas > 0) {
+                pontuacao += linhasRemovidas * 100;
+                document.getElementById('score').innerText = 'Pontos: ' + pontuacao;
             }
         }
 
-        function draw() {
+        function rotacionar(matrix) {
+            const N = matrix.length;
+            
+            // Rotação especial para peça O (não faz nada)
+            if (N === 2) return matrix;
+            
+            // Cria uma cópia da matriz para rotacionar
+            const novaMatrix = matrix.map(linha => [...linha]);
+            
+            // Rotação para outras peças
+            for (let y = 0; y < N; ++y) {
+                for (let x = 0; x < y; ++x) {
+                    [novaMatrix[x][y], novaMatrix[y][x]] = [novaMatrix[y][x], novaMatrix[x][y]];
+                }
+            }
+            
+            // Inverte cada linha
+            novaMatrix.forEach(linha => linha.reverse());
+            
+            return novaMatrix;
+        }
+
+        function desenhar() {
             context.fillStyle = '#000';
             context.fillRect(0, 0, canvas.width, canvas.height);
 
-            drawMatrix(arena, { x: 0, y: 0 });
-            drawMatrix(player.matrix, player.pos);
-
-            // Atualiza a pontuação na tela
-            document.getElementById('score').innerText = 'Score: ' + score;
+            desenharMatriz(arena, { x: 0, y: 0 });
+            desenharMatriz(jogador.matrix, jogador.pos);
         }
 
-        let dropCounter = 0;
-        let dropInterval = 1000;
-        let lastTime = 0;
+        let contadorQueda = 0;
+        let intervaloQueda = 1000;
+        let ultimoTempo = 0;
 
-        function update(time = 0) {
-            const deltaTime = time - lastTime;
-            lastTime = time;
-            dropCounter += deltaTime;
-            if (dropCounter > dropInterval) {
-                playerDrop();
+        function atualizar(tempo = 0) {
+            const deltaTempo = tempo - ultimoTempo;
+            ultimoTempo = tempo;
+            contadorQueda += deltaTempo;
+            if (contadorQueda > intervaloQueda) {
+                moverParaBaixo();
             }
-            draw();
-            requestAnimationFrame(update);
+            desenhar();
+            requestAnimationFrame(atualizar);
         }
 
-        const arena = createMatrix(12, 20);
-        const player = {
+        function moverParaBaixo() {
+            jogador.pos.y++;
+            if (colisao(arena, jogador)) {
+                jogador.pos.y--;
+                mesclar(arena, jogador);
+                limparLinhas();
+                resetarJogador();
+            }
+            contadorQueda = 0;
+        }
+
+        function moverLado(dir) {
+            jogador.pos.x += dir;
+            if (colisao(arena, jogador)) {
+                jogador.pos.x -= dir;
+            }
+        }
+
+        function rotacionarJogador() {
+            const matrixRotacionada = rotacionar(jogador.matrix);
+            if (!colisao(arena, {
+                matrix: matrixRotacionada,
+                pos: jogador.pos
+            })) {
+                jogador.matrix = matrixRotacionada;
+            }
+        }
+
+        function resetarJogador() {
+            jogador.matrix = pecaAleatoria();
+            jogador.pos.y = 0;
+            jogador.pos.x = (arena[0].length / 2 | 0) - (jogador.matrix[0].length / 2 | 0);
+            if (colisao(arena, jogador)) {
+                arena.forEach(linha => linha.fill(0));
+                pontuacao = 0;
+                document.getElementById('score').innerText = 'Pontos: 0';
+                alert("Fim de jogo!");
+            }
+        }
+
+        const arena = criarMatriz(12, 20);
+        const jogador = {
             pos: { x: 0, y: 0 },
-            matrix: matrix
+            matrix: pecaAleatoria()
         };
 
-        document.addEventListener('keydown', event => {
-            if (event.key === 'ArrowLeft') {
-                playerMove(-1);
-            } else if (event.key === 'ArrowRight') {
-                playerMove(1);
-            } else if (event.key === 'ArrowDown') {
-                playerDrop();
-            } else if (event.key === 'ArrowUp') {
-                playerRotate();
+        document.addEventListener('keydown', evento => {
+            if (evento.key === 'ArrowLeft') {
+                moverLado(-1);
+            } else if (evento.key === 'ArrowRight') {
+                moverLado(1);
+            } else if (evento.key === 'ArrowDown') {
+                moverParaBaixo();
+            } else if (evento.key === 'ArrowUp') {
+                rotacionarJogador();
             }
         });
 
-        playerReset();
-        update();
+        resetarJogador();
+        atualizar();
