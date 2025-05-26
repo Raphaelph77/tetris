@@ -2,7 +2,7 @@
         const context = canvas.getContext('2d');
         context.scale(20, 20);
 
-        // Todas as peças do Tetris (todas com valor 1 para manter a cor ciano)
+        
         const pecas = [
             // I
             [
@@ -98,6 +98,9 @@
         }
 
         let pontuacao = 0;
+        let velocidadeBase = 1000; // Velocidade inicial (1 segundo)
+        let velocidadeAtual = velocidadeBase;
+        let nivel = 1;
 
         function limparLinhas() {
             let linhasRemovidas = 0;
@@ -116,8 +119,18 @@
             }
 
             if (linhasRemovidas > 0) {
+                // Aumenta a pontuação
                 pontuacao += linhasRemovidas * 100;
-                document.getElementById('score').innerText = 'Pontos: ' + pontuacao;
+                
+                // Atualiza a velocidade baseado na pontuação
+                const novoNivel = Math.floor(pontuacao / 50) + 1;
+                if (novoNivel > nivel) {
+                    nivel = novoNivel;
+                    // Reduz o intervalo de queda em 50ms a cada nível
+                    velocidadeAtual = Math.max(100, velocidadeBase - (nivel - 1) * 50);
+                }
+                
+                document.getElementById('score').innerText = `Pontos: ${pontuacao} (Nível ${nivel})`;
             }
         }
 
@@ -152,14 +165,13 @@
         }
 
         let contadorQueda = 0;
-        let intervaloQueda = 1000;
         let ultimoTempo = 0;
 
         function atualizar(tempo = 0) {
             const deltaTempo = tempo - ultimoTempo;
             ultimoTempo = tempo;
             contadorQueda += deltaTempo;
-            if (contadorQueda > intervaloQueda) {
+            if (contadorQueda > velocidadeAtual) {
                 moverParaBaixo();
             }
             desenhar();
@@ -201,7 +213,9 @@
             if (colisao(arena, jogador)) {
                 arena.forEach(linha => linha.fill(0));
                 pontuacao = 0;
-                document.getElementById('score').innerText = 'Pontos: 0';
+                nivel = 1;
+                velocidadeAtual = velocidadeBase;
+                document.getElementById('score').innerText = 'Pontos: 0 (Nível 1)';
                 alert("Fim de jogo!");
             }
         }
